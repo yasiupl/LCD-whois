@@ -50,14 +50,6 @@ const char* root_ca= \
 "GDeAU/7dIOA1mjbRxwG55tzd8/8dLDoWV9mSOdY=\n" \
 "-----END CERTIFICATE-----\n";
 
-struct frame
-{
-  int headcount = 0;
-  int unknown = 0;
-  String users;
-};
-
-struct frame whois_frame;
 
 uint8_t cursor = 0;
 
@@ -114,9 +106,6 @@ void loop()
       Serial.println(httpCode);
       Serial.println(payload);
 
-      //payload.toCharArray(temp, payload.length() + 1);
-      //sscanf(temp, "{\"headcount\":%d,\"unknown_devices\":%d,", &whois_frame.headcount, &whois_frame.unknown);
-
       DeserializationError error = deserializeJson(doc, payload);
 
        if (error) {
@@ -150,3 +139,4 @@ void loop()
  
   http.end(); //Free the resources
 }
+
