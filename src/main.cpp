@@ -32,6 +32,7 @@ uint8_t cursor = 0;
 unsigned long lastRequest = 0;
 StaticJsonDocument<512> json;
 StaticJsonDocument<512> getWhois();
+String requestWhois();
 
 void setup()
 {
@@ -66,16 +67,17 @@ void setup()
   }
   lcd.setCursor(0, 1);
   lcd.print(WiFi.localIP());
-  delay(1000);
   json = getWhois();
+  delay(1000);
 }
 
 void loop()
 {
-  if (millis() - lastRequest >= 5 * 60 * 1000)
+  if (millis() - lastRequest >= 60 * 1000)
   {
     json = getWhois();
     lastRequest = millis();
+    delay(1000);
   }
 
   static int counter = 0;
@@ -93,8 +95,22 @@ void loop()
   delay(1000);
 }
 
-StaticJsonDocument<512> getWhois()
+StaticJsonDocument<512> getWhois() {
+  StaticJsonDocument<512> json;
+  DeserializationError error = deserializeJson(json, requestWhois());
+    lcd.setCursor(0, 0);
+    lcd.print("Refreshing");
+    if (error)
+    {
+      lcd.setCursor(0, 1);
+      lcd.print(error.c_str());
+    }
+    return json;
+}
+
+String requestWhois()
 {
+  String payload = "";
   const char *root_ca =
       "-----BEGIN CERTIFICATE-----\n"
       "MIICiTCCAg+gAwIBAgIQH0evqmIAcFBUTAGem2OZKjAKBggqhkjOPQQDAzCBhTEL\n"
@@ -113,31 +129,25 @@ StaticJsonDocument<512> getWhois()
       "GDeAU/7dIOA1mjbRxwG55tzd8/8dLDoWV9mSOdY=\n"
       "-----END CERTIFICATE-----\n";
 
-  StaticJsonDocument<512> json;
-
   http.begin("https://whois.at.hs3.pl/api/now", root_ca); //Specify the URL and certificate
   int httpCode = http.GET();                              //Make the request
 
   if (httpCode > 0)
   { //Check for the returning code
 
-    String payload = http.getString();
+    payload = http.getString();
     http.end(); //Free the resources
     Serial.println(httpCode);
     Serial.println(payload);
 
-    DeserializationError error = deserializeJson(json, payload);
-
-    if (error)
-    {
-      Serial.print(F("deserializeJson() failed: "));
-      Serial.println(error.c_str());
-    }
+    
   }
   else
   {
     Serial.println(F("Error on HTTP request"));
+    lcd.print("error " + httpCode);
+    return "";
   }
   http.end(); //Free the resources
-  return json;
+  return payload;
 }
