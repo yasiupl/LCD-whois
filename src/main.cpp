@@ -61,7 +61,7 @@ void setup()
       lcd.print("                ");
       lcd.setCursor(cursor, 1);
     };
-    delay(500);
+    delay(100);
     lcd.print("*");
     ++cursor;
   }
@@ -91,6 +91,9 @@ void loop()
     int index = (counter++) % (json["users"].size());
     lcd.setCursor(0, 1);
     lcd.print(json["users"][index].as<String>());
+  } else {
+    lcd.setCursor(0, 1);
+    lcd.print("Pool's Closed");
   }
   delay(1000);
 }
