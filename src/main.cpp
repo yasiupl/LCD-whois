@@ -26,19 +26,16 @@ const char *password = "przyjmujemy_datki_x86";
 #define CONTRAST 110
 
 LiquidCrystal lcd(PIN_RS, PIN_EN, PIN_4, PIN_5, PIN_6, PIN_7, 23, POSITIVE);
-HTTPClient http;
 
-uint8_t cursor = 0;
 unsigned long lastRequest = 0;
 StaticJsonDocument<512> json;
 StaticJsonDocument<512> getWhois();
 String requestWhois();
+void connect();
 
 void setup()
 {
   Serial.begin(115200);
-  WiFi.mode(WIFI_STA);
-  WiFi.begin(ssid, password);
 
   pinMode(PIN_LED, OUTPUT);
   pinMode(PIN_5V_ENA, OUTPUT);
@@ -50,34 +47,18 @@ void setup()
   lcd.begin(16, 2); // initialize the lcd
 
   lcd.home(); // go home
-  lcd.print("Connecting");
-  lcd.setCursor(0, 1); // go to the next line
-  while (WiFi.status() != WL_CONNECTED)
-  {
-    if (cursor > 16)
-    {
-      cursor = 0;
-      lcd.setCursor(cursor, 1);
-      lcd.print("                ");
-      lcd.setCursor(cursor, 1);
-    };
-    delay(100);
-    lcd.print("*");
-    ++cursor;
-  }
-  lcd.setCursor(0, 1);
-  lcd.print(WiFi.localIP());
-  json = getWhois();
-  delay(1000);
+
+  connect();
 }
 
 void loop()
 {
+  if(WiFi.status() != WL_CONNECTED) connect();
+
   if (millis() - lastRequest >= 60 * 1000)
   {
     json = getWhois();
     lastRequest = millis();
-    delay(1000);
   }
 
   static int counter = 0;
@@ -91,24 +72,29 @@ void loop()
     int index = (counter++) % (json["users"].size());
     lcd.setCursor(0, 1);
     lcd.print(json["users"][index].as<String>());
-  } else {
+  }
+  else
+  {
     lcd.setCursor(0, 1);
     lcd.print("Pool's Closed");
   }
   delay(1000);
 }
 
-StaticJsonDocument<512> getWhois() {
+StaticJsonDocument<512> getWhois()
+{
   StaticJsonDocument<512> json;
   DeserializationError error = deserializeJson(json, requestWhois());
-    lcd.setCursor(0, 0);
-    lcd.print("Refreshing");
-    if (error)
-    {
-      lcd.setCursor(0, 1);
-      lcd.print(error.c_str());
-    }
-    return json;
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Parsing");
+  if (error != DeserializationError::Ok)
+  {
+    lcd.setCursor(0, 1);
+    lcd.print(error.c_str());
+    delay(1000);
+  }
+  return json;
 }
 
 String requestWhois()
@@ -132,25 +118,60 @@ String requestWhois()
       "GDeAU/7dIOA1mjbRxwG55tzd8/8dLDoWV9mSOdY=\n"
       "-----END CERTIFICATE-----\n";
 
+  HTTPClient http;
   http.begin("https://whois.at.hs3.pl/api/now", root_ca); //Specify the URL and certificate
   int httpCode = http.GET();                              //Make the request
 
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Requesting");
   if (httpCode > 0)
   { //Check for the returning code
 
     payload = http.getString();
     http.end(); //Free the resources
-    Serial.println(httpCode);
-    Serial.println(payload);
-
-    
+    lcd.setCursor(0, 1);
+    lcd.print(httpCode + " " + payload);
   }
   else
   {
     Serial.println(F("Error on HTTP request"));
-    lcd.print("error " + httpCode);
+    lcd.print(httpCode + " error");
+    delay(1000);
     return "";
   }
   http.end(); //Free the resources
   return payload;
+}
+
+void connect()
+{
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(ssid, password);
+
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Waiting for WiFi");
+  lcd.setCursor(0, 1); // go to the next line
+  
+  uint8_t cursor = 0;
+  while (WiFi.status() != WL_CONNECTED)
+  {
+    if (cursor > 16)
+    {
+      cursor = 0;
+      lcd.setCursor(cursor, 1);
+      lcd.print("                ");
+      lcd.setCursor(cursor, 1);
+    };
+    delay(100);
+    lcd.print("*");
+    ++cursor;
+  }
+
+  lcd.setCursor(0, 1);
+  lcd.print(WiFi.localIP());
+  delay(1000);
+
+  json = getWhois();
 }
